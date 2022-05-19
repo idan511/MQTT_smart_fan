@@ -4,7 +4,7 @@ This is an updated project of my homekit smart fan that uses ESP32 S2 to run a s
 
 ## Requirements
 
-- [PubSubClient](https://github.com/knolleary/pubsubclient/releases/tag/v2.8)
+- [PubSubClient](https://github.com/knolleary/pubsubclient)
 
 - [OneWireNG](https://github.com/pstolarz/OneWireNg)
 
