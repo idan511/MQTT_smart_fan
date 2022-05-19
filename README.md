@@ -24,4 +24,8 @@ This is an updated project of my homekit smart fan that uses ESP32 S2 to run a s
 
 ## Usage
 
-First, apply your local WiFi network credentials and MQTT broker addresss in the code. Now, apply 
+First, apply your local WiFi network credentials and MQTT broker addresss in the code. Then, apply pin configuration and custom MQTT topics. 
+
+## Example Home Assistant configuration.yaml
+
+soon....
