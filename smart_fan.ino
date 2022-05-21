@@ -2,13 +2,13 @@
 #include <BfButton.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <EEPROM.h>
 
 #include "OneWireNg_CurrentPlatform.h"
 #include "drivers/DSTherm.h"
 #include "utils/Placeholder.h"
 #include "LED.h"
 #include "Relay.h"
-
 
 // WiFi credentials declared in creds.h or here
 #define USE_CREDS
@@ -59,9 +59,14 @@ const unsigned int light_sensor_pin = 13;
 const unsigned int light_sensor_enable_pin = 14;
 
 // brightness update intervals
-const unsigned int autobrightness_interval = 4; // seconds
+const unsigned int autobrightness_interval = 3; // seconds
 const unsigned int pwm_animation_interval = 500; // micro-seconds
 const unsigned int temperature_publish_interval = 60; // seconds
+
+// EEPROM addresses
+const unsigned int eeprom_size = 10;
+const unsigned int speed_addr = 0;
+const unsigned int brightness_addr = 1;
 
 static Placeholder<OneWireNg_CurrentPlatform> _ow;
 
@@ -107,8 +112,27 @@ uint16_t get_light() {
   return (8191 - r) >> 3;
 }
 
-void set_fan_speed(int spd) {
-  if (spd > 3 || spd < 0) {
+void init_fan_speed(uint8_t spd) {
+  if (spd >= num_of_speeds) {
+    return;
+  }
+  leds[spd].on();
+  if (spd == 0) {
+    last_spd2 = last_spd;
+  } else {
+    relays[spd - 1].on();
+  }
+  last_spd = spd;
+  char tmp[5];
+  EEPROM.put(speed_addr, last_spd);
+  EEPROM.commit();
+  snprintf(tmp, 5, "%d", last_spd);
+  client.publish(spd_topic, tmp);
+  client.publish(on_topic, last_spd > 0 ? "t" : "f");
+}
+
+void set_fan_speed(uint8_t spd) {
+  if (spd >= num_of_speeds) {
     return;
   }
   if (spd != last_spd) {
@@ -127,6 +151,8 @@ void set_fan_speed(int spd) {
     last_spd = spd;
   }
   char tmp[5];
+  EEPROM.put(speed_addr, last_spd);
+  EEPROM.commit();
   snprintf(tmp, 5, "%d", last_spd);
   client.publish(spd_topic, tmp);
   client.publish(on_topic, last_spd > 0 ? "t" : "f");
@@ -135,6 +161,8 @@ void set_fan_speed(int spd) {
 void set_pwm (uint16_t level) {  
   if (pwm == level) return;
   pwm = level;
+  EEPROM.put(brightness_addr, pwm);
+  EEPROM.commit();
   
   char tmp[15];
   snprintf(tmp, 15, "%u", pwm);
@@ -284,8 +312,11 @@ void IRAM_ATTR tflag_on() {
 }
 
 void setup() {
+
+  EEPROM.begin(eeprom_size);
     
-  pwm = get_light();
+  //pwm = get_light();
+  EEPROM.get(brightness_addr, pwm);
   last_light = pwm;
   true_pwm = pwm;
   for (LED& led : leds) {
@@ -299,7 +330,8 @@ void setup() {
     leds[0].toggle();
   }
   leds[0].on();*/
-  Serial.println();
+  
+  Serial.printf("Last pwm state: %u\n", pwm);
 
   btn1.onPress(pressHandler);
   btn1.onPressFor(toggle_pwm, 1000);
@@ -346,9 +378,14 @@ void setup() {
 
   delay(1000);
 
-  leds[1].off();
-  leds[2].off();
-  leds[3].off();
+  for (LED& led : leds) {
+    led.off();
+  }
+
+  uint8_t tspd = 0;
+  EEPROM.get(speed_addr, tspd);
+  Serial.printf("Last speed state: %u\n", tspd);
+  init_fan_speed(tspd);
 }
 
 
